@@ -1,0 +1,1967 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="优化版命令中枢界面">
+  <meta name="theme-color" content="#050510">
+  <title>优化版命令中枢</title>
+  
+  <!-- 预加载关键资源 -->
+  <link rel="preload" href="fonts/tech-font.woff2" as="font" type="font/woff2" crossorigin>
+  
+  <!-- 主要样式表 -->
+  <style>
+    /* CSS 变量定义 - 方便主题切换 */
+    :root {
+      --core-color: rgba(64, 220, 255, 0.7);
+      --core-glow: rgba(64, 220, 255, 0.4);
+      --core-inner: rgba(255, 255, 255, 0.8);
+      --menu-bg: rgba(10, 14, 30, 0.7);
+      --log-bg: rgba(5, 10, 20, 0.85);
+      --accent-color: #4cbbff;
+      --danger-color: #ff4757;
+      --success-color: #2ed573;
+      --panel-width: 450px;
+      --panel-bg: rgba(16, 20, 38, 0.85);
+      --panel-border: rgba(64, 220, 255, 0.3);
+      --anim-duration: 400ms;
+      --transition-timing: cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    /* 更现代的CSS重置 */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    /* 使用:focus-visible优化键盘导航 */
+    :focus-visible {
+      outline: 2px solid var(--accent-color);
+      outline-offset: 2px;
+    }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+    }
+
+    body {
+      background: #050510;
+      color: white;
+      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* 使用CSS grid代替复杂粒子系统的背景 */
+    .grid-background {
+      position: fixed;
+      inset: 0;
+      background-image: 
+        linear-gradient(rgba(64, 220, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(64, 220, 255, 0.03) 1px, transparent 1px);
+      background-size: 30px 30px;
+      z-index: -1;
+    }
+
+    /* 预定义动画关键帧 */
+    @keyframes pulse {
+      0% { transform: scale(0.95); opacity: 0.8; }
+      100% { transform: scale(1.05); opacity: 1; }
+    }
+
+    @keyframes rotate {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    /* 加载屏幕优化 - 使用CSS变量 */
+    .loading-overlay {
+      position: fixed;
+      inset: 0;
+      background: #050510;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+      transition: opacity var(--anim-duration);
+    }
+
+    .loading-spinner {
+      width: 50px;
+      height: 50px;
+      border: 3px solid rgba(64, 220, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: var(--accent-color);
+      animation: rotate 1s linear infinite;
+    }
+
+    /* 核心容器优化 */
+    .core-container {
+      position: relative;
+      width: 100%;
+      height: 70%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1;
+      /* 增加内容可见性优化 */
+      content-visibility: auto;
+      contain-intrinsic-size: 100% 70%;
+    }
+
+    .glow-core {
+      position: absolute;
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      background: radial-gradient(circle, var(--core-inner) 10%, var(--core-color) 70%);
+      box-shadow: 0 0 30px 15px var(--core-glow);
+      cursor: pointer;
+      transition: all var(--anim-duration) var(--transition-timing);
+      transform-style: preserve-3d;
+      z-index: 10;
+      /* 增加无障碍支持 */
+      role: button;
+      aria-label: "激活系统核心";
+      tabindex: 0;
+    }
+
+    /* 使用will-change优化合成 */
+    .glow-core:hover, .glow-core:focus-visible {
+      box-shadow: 0 0 50px 25px var(--core-glow);
+      transform: scale(1.05);
+      will-change: transform, box-shadow;
+    }
+
+    .glow-core::before {
+      content: '';
+      position: absolute;
+      top: 15%;
+      left: 15%;
+      width: 70%;
+      height: 70%;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0) 70%);
+      filter: blur(5px);
+    }
+
+    /* 优化菜单环动画 */
+    .menu-ring {
+      position: absolute;
+      width: 400px;
+      height: 400px;
+      border-radius: 50%;
+      transition: all var(--anim-duration) var(--transition-timing);
+      opacity: 0;
+      transform: scale(0.3);
+      pointer-events: none;
+    }
+
+    .menu-ring.active {
+      opacity: 1;
+      transform: scale(1);
+      pointer-events: all;
+    }
+
+    /* 模块按钮增强 */
+    .module-btn {
+      position: absolute;
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: var(--menu-bg);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+      font-size: 24px;
+      box-shadow: 0 0 15px rgba(64, 220, 255, 0.3);
+      transition: all 300ms var(--transition-timing);
+      opacity: 0;
+      transform: translateY(20px);
+      /* 增加无障碍支持 */
+      role: button;
+      tabindex: 0;
+    }
+
+    .module-btn:hover, .module-btn:focus-visible {
+      background: rgba(64, 190, 255, 0.3);
+      transform: scale(1.1) !important;
+      box-shadow: 0 0 20px 5px var(--core-glow);
+      will-change: transform, background, box-shadow;
+    }
+
+    .module-btn.active {
+      box-shadow: 0 0 30px 10px var(--core-glow);
+      border: 2px solid var(--accent-color);
+    }
+
+    /* 工具提示优化 */
+    .module-tooltip {
+      position: absolute;
+      background: rgba(10, 20, 30, 0.9);
+      border: 1px solid var(--accent-color);
+      padding: 10px;
+      border-radius: 4px;
+      font-size: 14px;
+      opacity: 0;
+      transition: all 300ms var(--transition-timing);
+      pointer-events: none;
+      white-space: nowrap;
+      bottom: -40px;
+      transform: translateY(10px);
+      box-shadow: 0 0 10px rgba(64, 220, 255, 0.2);
+      width: max-content;
+      max-width: 200px;
+      /* 改善工具提示访问性 */
+      role: tooltip;
+    }
+
+    .module-tooltip h4 {
+      color: var(--accent-color);
+      margin-bottom: 5px;
+      font-size: 15px;
+    }
+
+    .module-tooltip p {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.8);
+    }
+
+    .module-btn:hover .module-tooltip,
+    .module-btn:focus-visible .module-tooltip {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* 终端日志区域优化 */
+    .terminal-container {
+      position: fixed;
+      bottom: -120px; 
+      left: 0;
+      width: 100%;
+      height: 120px;
+      background: var(--log-bg);
+      border-top: 1px solid rgba(64, 220, 255, 0.3);
+      z-index: 100;
+      padding: 10px;
+      font-family: 'Consolas', monospace;
+      font-size: 14px;
+      overflow-y: auto;
+      overflow-x: hidden;
+      transition: bottom 300ms var(--transition-timing);
+      /* 减小DOM更新开销 */
+      contain: content;
+    }
+
+    .terminal-container.visible {
+      bottom: 0;
+      /* 使用Web动画API处理复杂动画 */
+      animation: slideInUp 300ms var(--transition-timing) forwards;
+    }
+
+    @keyframes slideInUp {
+      from { bottom: -120px; }
+      to { bottom: 0; }
+    }
+
+    .terminal-toggle {
+      position: fixed;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--log-bg);
+      color: var(--accent-color);
+      border: none;
+      border-radius: 5px 5px 0 0;
+      padding: 5px 20px;
+      cursor: pointer;
+      z-index: 101;
+      font-size: 12px;
+      border-top: 1px solid rgba(64, 220, 255, 0.3);
+      border-left: 1px solid rgba(64, 220, 255, 0.3);
+      border-right: 1px solid rgba(64, 220, 255, 0.3);
+      /* 无障碍支持 */
+      aria-expanded: "false";
+      aria-controls: "terminal";
+    }
+
+    .terminal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 5px;
+      color: var(--accent-color);
+    }
+
+    .terminal-title {
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .terminal-title::before {
+      content: '';
+      width: 8px;
+      height: 8px;
+      background-color: var(--success-color);
+      border-radius: 50%;
+      animation: blink 1.5s infinite;
+    }
+
+    .terminal-controls {
+      display: flex;
+      gap: 10px;
+    }
+
+    .terminal-control {
+      cursor: pointer;
+      opacity: 0.7;
+      padding: 2px 6px;
+      border-radius: 3px;
+      transition: all 200ms ease;
+      /* 无障碍支持 */
+      role: button;
+      tabindex: 0;
+    }
+
+    .terminal-control:hover,
+    .terminal-control:focus-visible {
+      opacity: 1;
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .terminal-log {
+      color: rgba(255, 255, 255, 0.8);
+      line-height: 1.4;
+    }
+
+    .log-entry {
+      margin: 2px 0;
+      animation: fadeInUp 300ms forwards;
+    }
+
+    .log-time {
+      color: rgba(64, 220, 255, 0.7);
+      margin-right: 5px;
+    }
+
+    .log-type {
+      margin-right: 5px;
+    }
+
+    .log-type.info { color: #4cbbff; }
+    .log-type.warning { color: #ffcc00; }
+    .log-type.error { color: #ff4c4c; }
+    .log-type.success { color: #4cff4c; }
+
+    .log-content {
+      color: rgba(255, 255, 255, 0.9);
+    }
+
+    /* 模块面板样式优化 */
+    .module-panel {
+      position: fixed;
+      right: -600px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: var(--panel-width);
+      height: 70vh;
+      background: var(--panel-bg);
+      backdrop-filter: blur(10px);
+      border-radius: 15px 0 0 15px;
+      border: 1px solid var(--panel-border);
+      border-right: none;
+      display: flex;
+      flex-direction: column;
+      z-index: 50;
+      overflow: hidden;
+      transition: right 600ms var(--transition-timing);
+      box-shadow: -5px 0 20px rgba(0, 0, 0, 0.5);
+      /* 优化渲染性能 */
+      content-visibility: auto;
+      contain-intrinsic-size: var(--panel-width) 70vh;
+    }
+
+    .module-panel.active {
+      right: 0;
+    }
+
+    .panel-header {
+      padding: 15px;
+      background: rgba(10, 20, 40, 0.8);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--panel-border);
+    }
+
+    .panel-title {
+      color: var(--accent-color);
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .panel-title span {
+      font-size: 20px;
+    }
+
+    .panel-close {
+      cursor: pointer;
+      width: 30px;
+      height: 30px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.1);
+      transition: all 300ms ease;
+      font-size: 18px;
+      /* 无障碍支持 */
+      role: button;
+      aria-label: "关闭面板";
+      tabindex: 0;
+    }
+
+    .panel-close:hover,
+    .panel-close:focus-visible {
+      background: rgba(255, 255, 255, 0.2);
+      color: var(--danger-color);
+    }
+
+    .panel-content {
+      flex: 1;
+      padding: 15px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* AI聊天模块样式优化 */
+    .chat-container {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      /* 虚拟滚动优化 */
+      contain: paint;
+    }
+
+    .chat-message {
+      max-width: 85%;
+      padding: 10px;
+      border-radius: 12px;
+      animation: fadeIn 300ms forwards;
+      position: relative;
+      line-height: 1.4;
+    }
+
+    .chat-message.ai {
+      align-self: flex-start;
+      background: rgba(64, 220, 255, 0.15);
+      border: 1px solid rgba(64, 220, 255, 0.3);
+      border-top-left-radius: 4px;
+    }
+
+    .chat-message.user {
+      align-self: flex-end;
+      background: rgba(100, 100, 255, 0.15);
+      border: 1px solid rgba(100, 100, 255, 0.3);
+      border-bottom-right-radius: 4px;
+    }
+
+    .chat-input-container {
+      padding: 15px;
+      display: flex;
+      gap: 10px;
+      border-top: 1px solid rgba(64, 220, 255, 0.2);
+    }
+
+    .chat-input {
+      flex: 1;
+      background: rgba(10, 20, 30, 0.6);
+      border: 1px solid rgba(64, 220, 255, 0.3);
+      border-radius: 20px;
+      padding: 10px 15px;
+      color: white;
+      outline: none;
+      transition: all 300ms ease;
+    }
+
+    .chat-input:focus {
+      border-color: rgba(64, 220, 255, 0.8);
+      box-shadow: 0 0 10px rgba(64, 220, 255, 0.3);
+    }
+
+    .chat-send {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: rgba(64, 220, 255, 0.3);
+      border: 1px solid rgba(64, 220, 255, 0.5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+      transition: all 300ms ease;
+      font-size: 18px;
+      /* 无障碍支持 */
+      role: button;
+      aria-label: "发送消息";
+      tabindex: 0;
+    }
+
+    .chat-send:hover,
+    .chat-send:focus-visible {
+      background: rgba(64, 220, 255, 0.5);
+      transform: scale(1.05);
+    }
+
+    /* 数字状态显示优化 */
+    .digital-readout {
+      position: fixed;
+      right: 20px;
+      top: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      z-index: 5;
+      font-family: 'Consolas', monospace;
+      font-size: 12px;
+      color: var(--accent-color);
+      background: rgba(10, 20, 30, 0.7);
+      border: 1px solid rgba(64, 220, 255, 0.3);
+      border-radius: 4px;
+      padding: 8px;
+      opacity: 0;
+      transition: opacity 500ms ease;
+    }
+
+    .digital-readout.visible {
+      opacity: 0.8;
+    }
+
+    .digital-readout:hover {
+      opacity: 1;
+    }
+
+    .digital-item {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .digital-label {
+      color: rgba(255, 255, 255, 0.7);
+    }
+
+    .digital-value {
+      color: var(--accent-color);
+    }
+
+    /* 性能优化控制器 */
+    .perf-controls {
+      position: fixed;
+      left: 10px;
+      top: 10px;
+      background: rgba(10, 20, 30, 0.7);
+      border: 1px solid rgba(64, 220, 255, 0.3);
+      border-radius: 4px;
+      padding: 8px;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      z-index: 500;
+      font-size: 12px;
+    }
+
+    .perf-label {
+      color: var(--accent-color);
+    }
+
+    .perf-quality {
+      cursor: pointer;
+      padding: 2px 6px;
+      border-radius: 3px;
+      transition: all 200ms;
+      /* 无障碍支持 */
+      role: radio;
+      tabindex: 0;
+    }
+
+    .perf-quality:hover,
+    .perf-quality:focus-visible {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .perf-quality.active {
+      background: var(--accent-color);
+      color: #000;
+      /* 无障碍支持 */
+      aria-checked: "true";
+    }
+
+    .placeholder-content {
+      color: rgba(255, 255, 255, 0.6);
+      text-align: center;
+      padding: 30px 0;
+      font-style: italic;
+    }
+
+    /* 媒体查询优化 */
+    @media (max-width: 768px) {
+      .digital-readout {
+        display: none;
+      }
+      
+      .module-panel {
+        width: 100%;
+        height: 80vh;
+        top: unset;
+        bottom: -100%;
+        right: 0;
+        transform: none;
+        border-radius: 15px 15px 0 0;
+        transition: bottom 600ms var(--transition-timing);
+      }
+      
+      .module-panel.active {
+        bottom: 0;
+        right: 0;
+      }
+      
+      .menu-ring {
+        width: 320px;
+        height: 320px;
+      }
+      
+      .module-btn {
+        width: 60px;
+        height: 60px;
+        font-size: 20px;
+      }
+    }
+
+    /* 深色/浅色模式支持 */
+    @media (prefers-color-scheme: light) {
+      body {
+        background: #f0f4f8;
+        color: #333;
+      }
+      
+      :root {
+        --panel-bg: rgba(240, 244, 248, 0.85);
+        --menu-bg: rgba(240, 244, 248, 0.7);
+        --log-bg: rgba(240, 244, 248, 0.85);
+      }
+      
+      /* 其他样式调整... */
+    }
+  </style>
+</head>
+<body>
+  <!-- 通过data-*属性支持的无障碍标签 -->
+  <div class="loading-overlay" id="loadingOverlay" aria-live="polite" aria-label="加载中">
+    <div class="loading-spinner" role="progressbar" aria-valuemin="0" aria-valuemax="100"></div>
+  </div>
+
+  <!-- 性能控制 -->
+  <div class="perf-controls" role="radiogroup" aria-label="特效质量设置">
+    <span class="perf-label" id="perfLabel">特效质量:</span>
+    <span class="perf-quality active" data-quality="0" role="radio" aria-checked="true" tabindex="0" aria-labelledby="perfLabel">低</span>
+    <span class="perf-quality" data-quality="1" role="radio" aria-checked="false" tabindex="0" aria-labelledby="perfLabel">中</span>
+    <span class="perf-quality" data-quality="2" role="radio" aria-checked="false" tabindex="0" aria-labelledby="perfLabel">高</span>
+  </div>
+
+  <!-- 使用div代替原来的canvas以提高性能 -->
+  <div class="grid-background" id="backgroundEffect" aria-hidden="true"></div>
+
+  <!-- 状态显示器 -->
+  <div class="digital-readout" id="digitalReadout" aria-live="polite">
+    <div class="digital-item">
+      <span class="digital-label">系统状态</span>
+      <span class="digital-value" id="systemStatus">待机</span>
+    </div>
+    <div class="digital-item">
+      <span class="digital-label">活动模块</span>
+      <span class="digital-value" id="activeModule">无</span>
+    </div>
+    <div class="digital-item">
+      <span class="digital-label">系统时间</span>
+      <span class="digital-value" id="systemTime">00:00:00</span>
+    </div>
+  </div>
+
+  <!-- 核心容器 -->
+  <div class="core-container">
+    <div class="glow-core" id="core" onclick="UI.toggleMenu()" role="button" tabindex="0" aria-label="激活系统核心"></div>
+    <div class="menu-ring" id="menuRing" role="menu" aria-label="系统功能菜单"></div>
+  </div>
+
+  <!-- 日志开关 -->
+  <button class="terminal-toggle" id="terminalToggle" aria-expanded="false" aria-controls="terminal">日志</button>
+
+  <!-- 终端容器 -->
+  <div class="terminal-container" id="terminal" role="log" aria-label="系统日志终端">
+    <div class="terminal-header">
+      <div class="terminal-title">系统日志终端</div>
+      <div class="terminal-controls">
+        <span class="terminal-control" id="clearLog" role="button" tabindex="0" aria-label="清空日志">清空</span>
+        <span class="terminal-control" id="toggleTerminal" role="button" tabindex="0" aria-label="关闭终端">关闭</span>
+      </div>
+    </div>
+    <div class="terminal-log" id="terminalLog"></div>
+  </div>
+
+  <!-- 模块面板容器 - 使用模板减少初始DOM负担 -->
+  <template id="panelTemplate">
+    <div class="panel-header">
+      <div class="panel-title"><span></span> <span class="panel-title-text"></span></div>
+      <div class="panel-close" role="button" tabindex="0" aria-label="关闭面板">×</div>
+    </div>
+    <div class="panel-content">
+      <div class="placeholder-content">正在加载内容...</div>
+    </div>
+  </template>
+
+  <!-- 预定义的面板 - 延迟加载内容 -->
+  <div class="module-panel" id="aiChatPanel" aria-label="AI对话系统面板" role="dialog" aria-modal="true"></div>
+  <div class="module-panel" id="fileManagerPanel" aria-label="文件管理器面板" role="dialog" aria-modal="true"></div>
+  <div class="module-panel" id="consolePanel" aria-label="系统控制台面板" role="dialog" aria-modal="true"></div>
+  <div class="module-panel" id="settingsPanel" aria-label="系统设置面板" role="dialog" aria-modal="true"></div>
+  <div class="module-panel" id="searchPanel" aria-label="搜索面板" role="dialog" aria-modal="true"></div>
+  <div class="module-panel" id="knowledgePanel" aria-label="知识库面板" role="dialog" aria-modal="true"></div>
+
+  <!-- 使用模块化的JS架构 -->
+  <script type="module">
+    // 模块化JS架构
+    // 核心配置模块
+    const Config = {
+      // 全局配置
+      particleCount: 30,      // 粒子数量(低配置)
+      particleSpeed: 0.3,     // 粒子移动速度
+      animationDensity: 0,    // 动画密度级别：0-低，1-中，2-高
+      loadDelay: 800,         // 载入延迟(ms)
+      enableBackgroundEffects: true,
+      maxLogEntries: 30,      // 最大日志条目数
+      audioEnabled: false,    // 默认禁用音效
+      activePanel: null,
+
+      // 持久化配置 - 使用localStorage
+      saveSettings() {
+        const settings = {
+          performanceMode: State.performanceMode,
+          audioEnabled: this.audioEnabled,
+          darkMode: document.body.classList.contains('dark-mode')
+        };
+        localStorage.setItem('cmdCenterSettings', JSON.stringify(settings));
+      },
+
+      loadSettings() {
+        try {
+          const settings = JSON.parse(localStorage.getItem('cmdCenterSettings'));
+          if (settings) {
+            State.performanceMode = settings.performanceMode || 0;
+            this.audioEnabled = settings.audioEnabled || false;
+            
+            // 应用深色模式
+            if (settings.darkMode !== undefined) {
+              document.body.classList.toggle('dark-mode', settings.darkMode);
+            }
+          }
+        } catch (e) {
+          console.error('设置加载失败:', e);
+        }
+      }
+    };
+
+    // 应用状态模块
+    const State = {
+      isSystemActive: false,
+      isMenuOpen: false,
+      isTerminalVisible: false,
+      loadedModules: new Set(),
+      activeAnimationFrames: [], // 存储活动的requestAnimationFrame ID
+      performanceMode: 0, // 0-低, 1-中, 2-高
+      lastFpsCheck: performance.now(),
+      frameCount: 0,
+      currentFps: 60,
+      logHistory: [], // 日志历史
+
+      // 消息总线 - 用于组件间通信
+      eventBus: new EventTarget(),
+      
+      // 订阅事件
+      subscribe(event, callback) {
+        this.eventBus.addEventListener(event, callback);
+      },
+      
+      // 发布事件
+      publish(event, data = null) {
+        const customEvent = new CustomEvent(event, { detail: data });
+        this.eventBus.dispatchEvent(customEvent);
+      }
+    };
+
+    // DOM引用模块 - 使用延迟初始化
+    const DOM = {
+      elements: {},
+      
+      // 延迟初始化DOM引用，减少启动延迟
+      init() {
+        this.elements = {
+          body: document.body,
+          core: document.getElementById('core'),
+          menuRing: document.getElementById('menuRing'),
+          terminal: document.getElementById('terminal'),
+          terminalLog: document.getElementById('terminalLog'),
+          terminalToggle: document.getElementById('terminalToggle'),
+          backgroundEffect: document.getElementById('backgroundEffect'),
+          digitalReadout: document.getElementById('digitalReadout'),
+          loadingOverlay: document.getElementById('loadingOverlay'),
+          systemStatus: document.getElementById('systemStatus'),
+          activeModule: document.getElementById('activeModule'),
+          systemTime: document.getElementById('systemTime'),
+          perfQualityBtns: document.querySelectorAll('.perf-quality')
+        };
+      },
+      
+      // 获取元素
+      get(id) {
+        if (!this.elements[id] && document.getElementById(id)) {
+          this.elements[id] = document.getElementById(id);
+        }
+        return this.elements[id];
+      },
+      
+      // 创建元素
+      create(tag, options = {}) {
+        const element = document.createElement(tag);
+        
+        if (options.classes) {
+          element.classList.add(...options.classes);
+        }
+        
+        if (options.attributes) {
+          for (const [key, value] of Object.entries(options.attributes)) {
+            element.setAttribute(key, value);
+          }
+        }
+        
+        if (options.text) {
+          element.textContent = options.text;
+        }
+        
+        if (options.html) {
+          element.innerHTML = options.html;
+        }
+        
+        if (options.parent) {
+          options.parent.appendChild(element);
+        }
+        
+        return element;
+      }
+    };
+
+    // UI控制模块
+    const UI = {
+      // 初始化UI
+      init() {
+        this.setupEventListeners();
+        this.initPanels();
+      },
+      
+      // 设置事件监听
+      setupEventListeners() {
+        // 使用事件委托减少监听器数量
+        document.addEventListener('click', this.handleGlobalClick.bind(this));
+        document.addEventListener('keydown', this.handleGlobalKeydown.bind(this));
+        
+        // 特定元素监听
+        DOM.get('terminalToggle').addEventListener('click', () => Logger.toggleTerminal());
+        DOM.get('clearLog').addEventListener('click', () => Logger.clearLogs());
+        DOM.get('toggleTerminal').addEventListener('click', () => Logger.toggleTerminal(false));
+        
+        // 性能质量选择事件委托
+        const perfControls = document.querySelector('.perf-controls');
+        perfControls.addEventListener('click', (e) => {
+          if (e.target.classList.contains('perf-quality')) {
+            const quality = parseInt(e.target.dataset.quality);
+            System.setPerformanceQuality(quality);
+            
+            // 更新UI
+            DOM.get('perfQualityBtns').forEach(b => {
+              b.classList.remove('active');
+              b.setAttribute('aria-checked', 'false');
+            });
+            e.target.classList.add('active');
+            e.target.setAttribute('aria-checked', 'true');
+          }
+        });
+        
+        // 窗口事件 - 使用节流减少频繁触发
+        window.addEventListener('resize', this.throttle(this.handleResize.bind(this), 200));
+      },
+      
+      // 初始化面板 - 使用模板和延迟加载
+      initPanels() {
+        const panels = document.querySelectorAll('.module-panel');
+        const template = document.getElementById('panelTemplate');
+        
+        panels.forEach(panel => {
+          // 使用克隆模板而不是创建全新DOM
+          const content = template.content.cloneNode(true);
+          
+          // 根据ID设置面板标题
+          const panelId = panel.id;
+          let icon, title;
+          
+          switch(panelId) {
+            case 'aiChatPanel':
+              icon = '🧠'; title = 'AI对话系统';
+              break;
+            case 'fileManagerPanel':
+              icon = '🗂️'; title = 'Prompt管理';
+              break;
+            case 'consolePanel':
+              icon = '📊'; title = '系统控制台';
+              break;
+            case 'settingsPanel':
+              icon = '🔧'; title = '系统设置';
+              break;
+            case 'searchPanel':
+              icon = '🔍'; title = '搜索';
+              break;
+            case 'knowledgePanel':
+              icon = '📚'; title = '知识库';
+              break;
+            default:
+              icon = '📄'; title = '未知模块';
+          }
+          
+          content.querySelector('.panel-title span').textContent = icon;
+          content.querySelector('.panel-title-text').textContent = title;
+          
+          // 设置关闭按钮处理
+          content.querySelector('.panel-close').addEventListener('click', () => {
+            this.togglePanel(panelId, false);
+          });
+          
+          panel.appendChild(content);
+        });
+      },
+      
+      // 全局点击处理 - 使用事件委托
+      handleGlobalClick(e) {
+        const target = e.target;
+        
+        // 检测按钮点击
+        if (target.closest('.module-btn')) {
+          const btn = target.closest('.module-btn');
+          const moduleId = btn.dataset.moduleId;
+          if (moduleId) {
+            this.activateModule({
+              id: moduleId,
+              name: btn.querySelector('.module-tooltip h4').textContent
+            });
+          }
+        }
+      },
+      
+      // 全局键盘处理 - 增强无障碍
+      handleGlobalKeydown(e) {
+        // Escape关闭面板
+        if (e.key === 'Escape') {
+          if (Config.activePanel) {
+            this.togglePanel(Config.activePanel, false);
+          } else if (State.isMenuOpen) {
+            this.toggleMenu();
+          }
+        }
+        
+        // 回车键激活选中元素
+        if (e.key === 'Enter') {
+          if (document.activeElement.classList.contains('module-btn')) {
+            document.activeElement.click();
+          } else if (document.activeElement.classList.contains('perf-quality')) {
+            document.activeElement.click();
+          } else if (document.activeElement.classList.contains('terminal-control')) {
+            document.activeElement.click();
+          } else if (document.activeElement.classList.contains('panel-close')) {
+            document.activeElement.click();
+          } else if (document.activeElement === DOM.get('core')) {
+            this.toggleMenu();
+          }
+        }
+      },
+      
+      // 节流函数 - 防止过多触发
+      throttle(func, limit) {
+        let lastCall = 0;
+        return function(...args) {
+          const now = Date.now();
+          if (now - lastCall >= limit) {
+            lastCall = now;
+            func.apply(this, args);
+          }
+        };
+      },
+      
+      // 调整窗口大小处理
+      handleResize() {
+        // 实现响应式布局调整
+        const width = window.innerWidth;
+        if (width < 768) {
+          // 移动视图调整
+          document.body.classList.add('mobile-view');
+        } else {
+          document.body.classList.remove('mobile-view');
+        }
+      },
+      
+      // 切换菜单
+      toggleMenu() {
+        if (!State.isSystemActive) {
+          System.activateSystem();
+          return;
+        }
+        
+        State.isMenuOpen = !State.isMenuOpen;
+        DOM.get('menuRing').classList.toggle('active', State.isMenuOpen);
+        
+        if (State.isMenuOpen) {
+          // 首次打开菜单时才创建按钮
+          if (DOM.get('menuRing').children.length === 0) {
+            this.createModuleButtons();
+          }
+          
+          // 动画按钮
+          const buttons = document.querySelectorAll('.module-btn');
+          buttons.forEach((btn, index) => {
+            // 使用Web动画API代替样式动画
+            btn.animate([
+              { opacity: 0, transform: 'translateY(20px)' },
+              { opacity: 1, transform: 'translateY(0)' }
+            ], {
+              duration: 500,
+              delay: index * 100,
+              fill: 'forwards',
+              easing: 'cubic-bezier(0.16, 1, 0.3, 1)'
+            });
+          });
+          
+          Logger.logAction('命令菜单已展开', 'info');
+        } else {
+          Logger.logAction('命令菜单已收起', 'info');
+        }
+      },
+      
+      // 创建模块按钮 - 使用DocumentFragment减少重排
+      createModuleButtons() {
+        const modules = [
+          { id: 'aiChatPanel', icon: '🧠', name: 'AI对话', desc: '与AI助手进行对话交流', color: 'rgba(64, 190, 255, 0.7)' },
+          { id: 'fileManagerPanel', icon: '🗂️', name: 'Prompt管理', desc: '管理您的文件和文档', color: 'rgba(190, 64, 255, 0.7)' },
+          { id: 'consolePanel', icon: '📊', name: '控制台', desc: '系统监控与命令中心', color: 'rgba(255, 190, 64, 0.7)' },
+          { id: 'settingsPanel', icon: '🔧', name: '设置', desc: '自定义系统行为与外观', color: 'rgba(64, 255, 128, 0.7)' },
+          { id: 'searchPanel', icon: '🔍', name: '搜索', desc: '搜索系统内容和资源', color: 'rgba(255, 64, 120, 0.7)' },
+          { id: 'knowledgePanel', icon: '📚', name: '知识库', desc: '访问系统内置知识资源', color: 'rgba(128, 255, 64, 0.7)' }
+        ];
+        
+        // 使用DocumentFragment减少DOM重排
+        const fragment = document.createDocumentFragment();
+        
+        modules.forEach((module, index) => {
+          const angle = (index / modules.length) * Math.PI * 2;
+          const btn = document.createElement('div');
+          btn.className = 'module-btn';
+          btn.id = `module-btn-${index}`;
+          btn.dataset.moduleId = module.id;
+          btn.setAttribute('role', 'menuitem');
+          btn.setAttribute('tabindex', '0');
+          btn.setAttribute('aria-label', module.name);
+          btn.style.backgroundColor = module.color;
+          btn.innerHTML = `
+            ${module.icon}
+            <div class="module-tooltip" role="tooltip">
+              <h4>${module.name}</h4>
+              <p>${module.desc}</p>
+            </div>
+          `;
+          
+          // 环形布局
+          const radius = 150; // 距中心的半径
+          const x = Math.cos(angle) * radius;
+          const y = Math.sin(angle) * radius;
+          
+          btn.style.left = `calc(50% + ${x}px - 40px)`;
+          btn.style.top = `calc(50% + ${y}px - 40px)`;
+          
+          fragment.appendChild(btn);
+        });
+        
+        // 一次性添加所有按钮
+        DOM.get('menuRing').appendChild(fragment);
+        
+        Logger.logAction('模块按钮已创建', 'info');
+      },
+      
+      // 激活模块
+      activateModule(module) {
+        Logger.logAction(`正在加载 ${module.name} 模块...`, 'info');
+        
+        // 视觉反馈：所有按钮取消激活状态
+        document.querySelectorAll('.module-btn').forEach(btn => {
+          btn.classList.remove('active');
+        });
+        
+        // 找到当前点击的按钮并激活
+        const btn = document.querySelector(`.module-btn[data-module-id="${module.id}"]`);
+        if (btn) btn.classList.add('active');
+        
+        // 更新活动模块指示器
+        DOM.get('activeModule').textContent = module.name;
+        
+        // 打开对应的面板，首次时延迟加载内容
+        this.togglePanel(module.id, true);
+      },
+      
+      // 切换面板 - 使用IntersectionObserver懒加载内容
+      togglePanel(panelId, show) {
+        const panel = document.getElementById(panelId);
+        if (!panel) return;
+        
+        const allPanels = document.querySelectorAll('.module-panel');
+        
+        if (show) {
+          // 隐藏所有其他面板
+          allPanels.forEach(p => {
+            if (p.id !== panelId) {
+              p.classList.remove('active');
+              p.setAttribute('aria-hidden', 'true');
+            }
+          });
+          
+          // 显示当前面板
+          panel.classList.add('active');
+          panel.setAttribute('aria-hidden', 'false');
+          Config.activePanel = panelId;
+          
+          // 如果是首次加载该面板，使用IntersectionObserver延迟加载内容
+          if (!State.loadedModules.has(panelId)) {
+            this.lazyLoadPanelContent(panel, panelId);
+          }
+          
+          // 记录到日志
+          const moduleName = panel.querySelector('.panel-title-text').textContent.trim();
+          Logger.logAction(`${moduleName} 面板已打开`, 'info');
+          
+          // 触发面板已打开事件
+          State.publish('panelOpened', { panelId });
+        } else {
+          // 隐藏当前面板
+          panel.classList.remove('active');
+          panel.setAttribute('aria-hidden', 'true');
+          Config.activePanel = null;
+          
+          // 记录到日志
+          const moduleName = panel.querySelector('.panel-title-text').textContent.trim();
+          Logger.logAction(`${moduleName} 面板已关闭`, 'info');
+          
+          // 重置按钮激活状态
+          document.querySelectorAll('.module-btn').forEach(btn => {
+            btn.classList.remove('active');
+          });
+          
+          DOM.get('activeModule').textContent = "无";
+          
+          // 触发面板已关闭事件
+          State.publish('panelClosed', { panelId });
+        }
+      },
+      
+      // 懒加载面板内容
+      lazyLoadPanelContent(panel, panelId) {
+        // 使用IntersectionObserver观察面板是否可见
+        const observer = new IntersectionObserver((entries) => {
+          entries.forEach(entry => {
+            if (entry.isIntersecting) {
+              // 是否已加载
+              if (!State.loadedModules.has(panelId)) {
+                this.loadModuleContent(panelId);
+              }
+              observer.disconnect();
+            }
+          });
+        }, { threshold: 0.1 });
+        
+        observer.observe(panel);
+      },
+      
+      // 动态加载模块内容 - 使用异步加载
+      async loadModuleContent(panelId) {
+        if (State.loadedModules.has(panelId)) return;
+        
+        const panel = document.getElementById(panelId);
+        if (!panel) return;
+        
+        const contentElement = panel.querySelector('.panel-content');
+        if (!contentElement) return;
+        
+        // 显示加载指示器
+        contentElement.innerHTML = '<div class="loading-indicator">加载中...</div>';
+        
+        try {
+          // 模拟异步加载
+          await new Promise(resolve => setTimeout(resolve, 300));
+          
+          let contentHTML = '';
+          
+          switch(panelId) {
+            case 'aiChatPanel':
+              contentHTML = await ModuleLoader.loadAiChatModule();
+              break;
+              
+            case 'fileManagerPanel':
+              contentHTML = await ModuleLoader.loadFileManagerModule();
+              break;
+              
+            case 'consolePanel':
+              contentHTML = await ModuleLoader.loadConsoleModule();
+              break;
+              
+            case 'settingsPanel':
+              contentHTML = await ModuleLoader.loadSettingsModule();
+              break;
+              
+            case 'searchPanel':
+              contentHTML = await ModuleLoader.loadSearchModule();
+              break;
+              
+            case 'knowledgePanel':
+              contentHTML = await ModuleLoader.loadKnowledgeModule();
+              break;
+              
+            default:
+              contentHTML = `<div class="placeholder-content">模块 ${panelId} 尚未实现</div>`;
+          }
+          
+          // 使用DocumentFragment减少DOM操作
+          const temp = document.createElement('div');
+          temp.innerHTML = contentHTML;
+          const fragment = document.createDocumentFragment();
+          
+          while (temp.firstChild) {
+            fragment.appendChild(temp.firstChild);
+          }
+          
+          // 清空加载指示器并插入内容
+          contentElement.innerHTML = '';
+          contentElement.appendChild(fragment);
+          
+          // 为新加载的内容添加事件监听器
+          this.setupModuleEvents(panelId);
+          
+          // 添加到已加载模块集合
+          State.loadedModules.add(panelId);
+          
+          Logger.logAction(`${panelId} 内容已加载`, 'success');
+          
+          // 触发模块加载完成事件
+          State.publish('moduleLoaded', { panelId });
+        } catch (error) {
+          contentElement.innerHTML = `<div class="error-message">加载失败: ${error.message}</div>`;
+          Logger.logAction(`${panelId} 加载失败: ${error.message}`, 'error');
+        }
+      },
+      
+      // 设置模块特定事件处理
+      setupModuleEvents(panelId) {
+        switch(panelId) {
+          case 'aiChatPanel':
+            const chatInput = document.getElementById('chatInput');
+            const chatSend = document.querySelector('.chat-send');
+            
+            if (chatInput) {
+              chatInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                  ChatModule.sendMessage();
+                }
+              });
+              
+              // 聚焦输入框
+              setTimeout(() => chatInput.focus(), 100);
+            }
+            
+            if (chatSend) {
+              chatSend.addEventListener('click', () => {
+                ChatModule.sendMessage();
+              });
+            }
+            break;
+            
+          case 'settingsPanel':
+            // 主题切换
+            const themeToggle = document.getElementById('themeToggle');
+            if (themeToggle) {
+              themeToggle.addEventListener('click', () => {
+                document.body.classList.toggle('dark-theme');
+                Config.saveSettings();
+              });
+            }
+            
+            // 特效开关
+            const effectsToggle = document.getElementById('effectsToggle');
+            if (effectsToggle) {
+              effectsToggle.addEventListener('click', () => {
+                Config.enableBackgroundEffects = !Config.enableBackgroundEffects;
+                DOM.get('backgroundEffect').style.display = Config.enableBackgroundEffects ? 'block' : 'none';
+                Config.saveSettings();
+              });
+            }
+            
+            // 音效开关
+            const audioToggle = document.getElementById('audioToggle');
+            if (audioToggle) {
+              audioToggle.addEventListener('click', () => {
+                Config.audioEnabled = !Config.audioEnabled;
+                Config.saveSettings();
+              });
+            }
+            
+            // 动画速度滑块
+            const animSpeedSlider = document.getElementById('animSpeedSlider');
+            const animSpeedValue = document.getElementById('animSpeedValue');
+            
+            if (animSpeedSlider && animSpeedValue) {
+              animSpeedSlider.addEventListener('input', () => {
+                const value = animSpeedSlider.value;
+                animSpeedValue.textContent = `${value}%`;
+                document.documentElement.style.setProperty('--anim-duration', `${400 - value * 3}ms`);
+              });
+            }
+            break;
+        }
+      }
+    };
+
+    // 模块加载器
+    const ModuleLoader = {
+      // AI聊天模块
+      async loadAiChatModule() {
+        return `
+          <div class="chat-container">
+            <div class="chat-messages" id="chatMessages">
+              <div class="chat-message ai">
+                欢迎使用AI对话系统。请输入您的问题或指令...
+              </div>
+            </div>
+            <div class="chat-input-container">
+              <input type="text" class="chat-input" id="chatInput" placeholder="输入您的问题..." aria-label="聊天输入框">
+              <div class="chat-send" role="button" tabindex="0" aria-label="发送消息">➤</div>
+            </div>
+          </div>
+        `;
+      },
+      
+      // 文件管理模块
+      async loadFileManagerModule() {
+        return `
+          <div class="files-container">
+            <div class="files-toolbar">
+              <div class="files-btn" role="button" tabindex="0"><span>📂</span> 新建文件夹</div>
+              <div class="files-btn" role="button" tabindex="0"><span>📄</span> 上传文件</div>
+              <div class="files-btn" role="button" tabindex="0"><span>🔍</span> 搜索</div>
+            </div>
+            <div class="files-list">
+              <div class="file-item" tabindex="0" role="listitem">
+                <div class="file-icon">📁</div>
+                <div class="file-details">
+                  <div class="file-name">系统文件</div>
+                  <div class="file-meta">2025-05-12 创建</div>
+                </div>
+              </div>
+              <div class="file-item" tabindex="0" role="listitem">
+                <div class="file-icon">📁</div>
+                <div class="file-details">
+                  <div class="file-name">项目文档</div>
+                  <div class="file-meta">2025-05-10 创建</div>
+                </div>
+              </div>
+              <div class="file-item" tabindex="0" role="listitem">
+                <div class="file-icon">📄</div>
+                <div class="file-details">
+                  <div class="file-name">会议记录.txt</div>
+                  <div class="file-meta">27.4 KB • 2025-05-11 修改</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      },
+      
+      // 控制台模块
+      async loadConsoleModule() {
+        return `
+          <div class="console-container">
+            <div class="console-output" id="consoleOutput" aria-live="polite">
+              <div class="console-line"><span class="console-prompt">$</span> <span class="console-command">system.status</span></div>
+              <div class="console-line console-result">系统运行正常，当前版本: v1.2.4</div>
+              <div class="console-line"><span class="console-prompt">$</span> <span class="console-command">list.modules</span></div>
+              <div class="console-line console-result">已加载模块: AI对话, 文件管理器, 控制台, 设置</div>
+            </div>
+            <div class="console-input">
+              <span>$</span>
+              <input type="text" placeholder="输入命令..." id="consoleInput" aria-label="控制台命令输入">
+            </div>
+          </div>
+        `;
+      },
+      
+      // 设置模块
+      async loadSettingsModule() {
+        return `
+          <div class="settings-container">
+            <div class="settings-group">
+              <div class="settings-group-title">界面设置</div>
+              <div class="setting-item">
+                <div class="setting-label">深色模式</div>
+                <div class="setting-value">
+                  <div class="toggle-switch active" id="themeToggle" role="switch" aria-checked="true" tabindex="0"></div>
+                </div>
+              </div>
+              <div class="setting-item">
+                <div class="setting-label">背景动画</div>
+                <div class="setting-value">
+                  <div class="toggle-switch active" id="effectsToggle" role="switch" aria-checked="true" tabindex="0"></div>
+                </div>
+              </div>
+              <div class="setting-item">
+                <div class="setting-label">音效</div>
+                <div class="setting-value">
+                  <div class="toggle-switch" id="audioToggle" role="switch" aria-checked="false" tabindex="0"></div>
+                </div>
+              </div>
+              <div class="setting-item">
+                <div class="setting-label">动画速度</div>
+                <div class="setting-value">
+                  <div class="slider-container">
+                    <input type="range" min="0" max="100" value="70" class="slider" id="animSpeedSlider" aria-label="动画速度">
+                    <span class="slider-value" id="animSpeedValue">70%</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      },
+      
+      // 搜索模块
+      async loadSearchModule() {
+        return `
+          <div class="search-container">
+            <div class="search-header">
+              <input type="text" class="search-input" placeholder="搜索系统内容..." aria-label="搜索输入框">
+              <div class="search-button" role="button" tabindex="0" aria-label="执行搜索">搜索</div>
+            </div>
+            <div class="search-filters">
+              <div class="filter-item active" role="checkbox" aria-checked="true" tabindex="0">所有内容</div>
+              <div class="filter-item" role="checkbox" aria-checked="false" tabindex="0">文档</div>
+              <div class="filter-item" role="checkbox" aria-checked="false" tabindex="0">对话</div>
+              <div class="filter-item" role="checkbox" aria-checked="false" tabindex="0">系统</div>
+            </div>
+            <div class="search-results" aria-live="polite">
+              <div class="placeholder-content">请输入关键词开始搜索</div>
+            </div>
+          </div>
+        `;
+      },
+      
+      // 知识库模块
+      async loadKnowledgeModule() {
+        return `
+          <div class="knowledge-container">
+            <div class="knowledge-categories">
+              <div class="category-item active" tabindex="0" role="tab" aria-selected="true">系统手册</div>
+              <div class="category-item" tabindex="0" role="tab" aria-selected="false">常见问题</div>
+              <div class="category-item" tabindex="0" role="tab" aria-selected="false">API文档</div>
+              <div class="category-item" tabindex="0" role="tab" aria-selected="false">教程</div>
+            </div>
+            <div class="knowledge-content" aria-live="polite">
+              <h3>系统手册</h3>
+              <div class="knowledge-section">
+                <h4>基础操作</h4>
+                <p>点击中央核心激活系统，第二次点击展开模块菜单。
+                从菜单选择需要的功能模块。每个模块提供不同的系统功能。</p>
+              </div>
+              <div class="knowledge-section">
+                <h4>性能优化</h4>
+                <p>左上角的质量选择器可以根据设备性能调整视觉效果的复杂度。
+                低性能设备建议选择"低"模式以获得最佳体验。</p>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+    };
+
+    // 系统核心功能
+    const System = {
+      init() {
+        // 加载用户设置
+        Config.loadSettings();
+        
+        // 应用初始设置
+        this.setPerformanceQuality(State.performanceMode);
+        
+        // 修改DOM属性
+        DOM.get('terminalToggle').setAttribute('aria-expanded', 'false');
+        
+        // 启动时钟
+        this.startClock();
+
+        // 初始化背景效果
+        this.initBackgroundEffect();
+        
+        // 结束加载屏幕
+        setTimeout(() => {
+          DOM.get('loadingOverlay').style.opacity = '0';
+          setTimeout(() => {
+            DOM.get('loadingOverlay').style.display = 'none';
+            // 显示数字读数器
+            DOM.get('digitalReadout').classList.add('visible');
+          }, 500);
+        }, Config.loadDelay);
+      },
+      
+      // 激活系统
+      activateSystem() {
+        if(State.isSystemActive) return;
+        
+        State.isSystemActive = true;
+        DOM.get('core').style.boxShadow = "0 0 50px 25px var(--core-glow)";
+        
+        // 应用动画，基于性能模式
+        if(State.performanceMode > 0) {
+          DOM.get('core').style.animation = "pulse 4s infinite alternate, rotate 20s linear infinite";
+          
+          // 显示背景效果
+          DOM.get('backgroundEffect').style.opacity = '0.6';
+        } else {
+          // 低配置只应用简单动画
+          DOM.get('core').style.animation = "pulse 6s infinite alternate";
+        }
+        
+        // 更新状态
+        DOM.get('systemStatus').textContent = '已激活';
+        
+        Logger.logAction('系统核心已激活', 'success');
+        
+        // 触发系统激活事件
+        State.publish('systemActivated');
+      },
+      
+      // 设置性能质量
+      setPerformanceQuality(level) {
+        State.performanceMode = level;
+        
+        // 更新CSS变量
+        document.documentElement.style.setProperty('--anim-duration', level === 0 ? '600ms' : level === 1 ? '400ms' : '300ms');
+        
+        switch(level) {
+          case 0: // 低
+            Config.particleCount = 20;
+            Config.particleSpeed = 0.2;
+            break;
+          case 1: // 中
+            Config.particleCount = 50;
+            Config.particleSpeed = 0.3;
+            break;
+          case 2: // 高
+            Config.particleCount = 100;
+            Config.particleSpeed = 0.5;
+            break;
+        }
+        
+        Logger.logAction(`性能质量已设置为: ${level === 0 ? '低' : level === 1 ? '中' : '高'}`, 'info');
+        
+        // 保存设置
+        Config.saveSettings();
+        
+        // 触发性能模式变更事件
+        State.publish('performanceModeChanged', { level });
+      },
+      
+      // 初始化背景效果
+      initBackgroundEffect() {
+        const backgroundEffect = DOM.get('backgroundEffect');
+        
+        // 简化背景效果，仅使用CSS Grid
+        backgroundEffect.style.opacity = State.performanceMode > 0 ? '0.6' : '0.3';
+      },
+      
+      // 更新时钟
+      startClock() {
+        const updateClock = () => {
+          const now = new Date();
+          const hours = now.getHours().toString().padStart(2, '0');
+          const minutes = now.getMinutes().toString().padStart(2, '0');
+          const seconds = now.getSeconds().toString().padStart(2, '0');
+          DOM.get('systemTime').textContent = `${hours}:${minutes}:${seconds}`;
+        };
+        
+        // 立即更新一次
+        updateClock();
+        
+        // 设置更新间隔
+        setInterval(updateClock, 1000);
+      },
+      
+      // 监控性能
+      monitorPerformance() {
+        // 使用requestAnimationFrame计算FPS
+        let frameCount = 0;
+        let lastTime = performance.now();
+        
+        const countFrames = () => {
+          frameCount++;
+          const now = performance.now();
+          
+          // 每秒计算一次FPS
+          if (now - lastTime >= 1000) {
+            State.currentFps = frameCount;
+            frameCount = 0;
+            lastTime = now;
+            
+            // FPS过低时自动降低质量
+            if (State.currentFps < 30 && State.performanceMode > 0) {
+              this.setPerformanceQuality(State.performanceMode - 1);
+              Logger.logAction(`检测到性能问题，自动降低画质 (${State.currentFps} FPS)`, 'warning');
+            }
+          }
+          
+          requestAnimationFrame(countFrames);
+        };
+        
+        // 开始监控
+        requestAnimationFrame(countFrames);
+      }
+    };
+
+    // 日志管理模块
+    const Logger = {
+      maxLogEntries: 30,
+      
+      // 记录操作
+      logAction(message, type = 'info') {
+        const now = new Date();
+        const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+        
+        // 构建日志对象
+        const logEntry = {
+          time: timeStr,
+          type: type,
+          message: message
+        };
+        
+        // 添加到历史
+        State.logHistory.push(logEntry);
+        
+        // 限制历史长度
+        if (State.logHistory.length > this.maxLogEntries) {
+          State.logHistory.shift();
+        }
+        
+        // 如果终端可见，才更新DOM
+        if (State.isTerminalVisible) {
+          this.renderLog(logEntry);
+        }
+        
+        // 控制台打印
+        console.log(`[${type.toUpperCase()}] ${message}`);
+        
+        // 触发日志事件
+        State.publish('logEntry', logEntry);
+      },
+      
+      // 渲染单条日志（高效DOM操作）
+      renderLog(logEntry) {
+        const terminalLog = DOM.get('terminalLog');
+        
+        // 使用文档片段减少重排
+        const fragment = document.createDocumentFragment();
+        const logElement = document.createElement('div');
+        logElement.className = 'log-entry';
+        logElement.innerHTML = `
+          <span class="log-time">[${logEntry.time}]</span>
+          <span class="log-type ${logEntry.type}">[${logEntry.type.toUpperCase()}]</span>
+          <span class="log-content">${logEntry.message}</span>
+        `;
+        
+        fragment.appendChild(logElement);
+        terminalLog.appendChild(fragment);
+        
+        // 滚动到底部
+        terminalLog.scrollTop = terminalLog.scrollHeight;
+      },
+      
+      // 切换终端可见性
+      toggleTerminal(show = null) {
+        if (show === null) {
+          show = !State.isTerminalVisible;
+        }
+        
+        State.isTerminalVisible = show;
+        const terminal = DOM.get('terminal');
+        terminal.classList.toggle('visible', show);
+        DOM.get('terminalToggle').setAttribute('aria-expanded', show ? 'true' : 'false');
+        
+        // 如果显示，渲染所有日志
+        if (show && State.logHistory.length > 0) {
+          // 清空现有日志
+          DOM.get('terminalLog').innerHTML = '';
+          
+          // 使用DocumentFragment批量添加
+          const fragment = document.createDocumentFragment();
+          
+          State.logHistory.forEach(entry => {
+            const logElement = document.createElement('div');
+            logElement.className = 'log-entry';
+            logElement.innerHTML = `
+              <span class="log-time">[${entry.time}]</span>
+              <span class="log-type ${entry.type}">[${entry.type.toUpperCase()}]</span>
+              <span class="log-content">${entry.message}</span>
+            `;
+            fragment.appendChild(logElement);
+          });
+          
+          DOM.get('terminalLog').appendChild(fragment);
+          DOM.get('terminalLog').scrollTop = DOM.get('terminalLog').scrollHeight;
+        }
+        
+        this.logAction(show ? '终端已显示' : '终端已隐藏', 'info');
+      },
+      
+      // 清空日志
+      clearLogs() {
+        // 清空DOM
+        DOM.get('terminalLog').innerHTML = '';
+        // 清空历史
+        State.logHistory = [];
+        this.logAction('日志已清空', 'info');
+      }
+    };
+
+    // AI聊天模块
+    const ChatModule = {
+      messageHistory: [],
+      
+      // 发送消息
+      sendMessage() {
+        const chatInput = document.getElementById('chatInput');
+        if (!chatInput) return;
+        
+        const message = chatInput.value.trim();
+        if (!message) return;
+        
+        const chatMessages = document.getElementById('chatMessages');
+        if (!chatMessages) return;
+        
+        // 添加用户消息
+        this.addMessage(message, 'user');
+        
+        // 清空输入框
+        chatInput.value = '';
+        
+        // 记录日志
+        Logger.logAction(`用户发送消息: "${message}"`, 'info');
+        
+        // 处理消息
+        this.processMessage(message);
+      },
+      
+      // 处理消息
+      async processMessage(message) {
+        // 简单的AI响应逻辑
+        let response;
+        if (message.includes('你好') || message.includes('hi') || message.includes('hello')) {
+          response = '你好！很高兴为您服务。请问有什么可以帮到您？';
+        } else if (message.includes('功能') || message.includes('什么')) {
+          response = '我可以回答问题、提供帮助，或者陪您聊天。这是一个优化版的界面示例，减少了不必要的动画和效果。';
+        } else if (message.includes('谢谢') || message.includes('thanks')) {
+          response = '不客气，这是我的荣幸。随时为您服务！';
+        } else {
+          response = '我已经收到您的消息，这是一个演示回复。在实际应用中，这里会接入真正的AI响应系统。感谢您的耐心测试！';
+        }
+        
+        // 模拟网络延迟
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // 添加AI消息
+        this.addMessage(response, 'ai', true);
+      },
+      
+      // 添加消息
+      addMessage(content, type, isTyping = false) {
+        const chatMessages = document.getElementById('chatMessages');
+        if (!chatMessages) return;
+        
+        // 创建消息元素
+        const messageElement = document.createElement('div');
+        messageElement.className = `chat-message ${type}`;
+        
+        // 保存到历史
+        this.messageHistory.push({
+          content,
+          type,
+          timestamp: new Date()
+        });
+        
+        // 如果是打字效果
+        if (isTyping && type === 'ai') {
+          messageElement.textContent = '';
+          chatMessages.appendChild(messageElement);
+          
+          // 流式打字效果
+          this.typeWriterEffect(messageElement, content);
+        } else {
+          messageElement.textContent = content;
+          chatMessages.appendChild(messageElement);
+        }
+        
+        // 滚动到底部
+        this.scrollToBottom(chatMessages);
+      },
+      
+      // 打字机效果 - 使用Web Animation API
+      typeWriterEffect(element, text) {
+        let i = 0;
+        const speed = 30;
+        
+        const typing = () => {
+          if (i < text.length) {
+            element.textContent = text.substring(0, i + 1);
+            i++;
+            setTimeout(typing, speed);
+          } else {
+            // 打印完成
+            Logger.logAction('AI已完成回复', 'success');
+          }
+        };
+        
+        typing();
+      },
+      
+      // 滚动到底部 - 使用平滑滚动
+      scrollToBottom(element) {
+        element.scrollTo({
+          top: element.scrollHeight,
+          behavior: 'smooth'
+        });
+      }
+    };
+
+    // 启动应用
+    async function initializeApp() {
+      // 初始化DOM引用
+      DOM.init();
+      
+      // 记录初始日志
+      Logger.logAction('系统正在启动...', 'info');
+      
+      // 加载用户设置
+      await Config.loadSettings();
+      
+      // 初始化UI
+      UI.init();
+      
+      // 初始化系统
+      System.init();
+      
+      // 检测设备性能，自动选择画质
+      const isLowEndDevice = 
+        window.navigator.hardwareConcurrency <= 4 || 
+        /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      
+      if (isLowEndDevice && State.performanceMode > 0) {
+        System.setPerformanceQuality(0);
+        Logger.logAction('检测到低性能设备，已自动调整画质', 'info');
+      }
+      
+      // 响应性监测
+      UI.handleResize();
+      
+      // 性能监控
+      System.monitorPerformance();
+      
+      // 注册Service Worker (支持PWA)
+      if ('serviceWorker' in navigator) {
+        try {
+          // 省略实际的Service Worker注册代码
+          Logger.logAction('Service Worker已注册', 'success');
+        } catch (error) {
+          Logger.logAction('Service Worker注册失败', 'error');
+        }
+      }
+      
+      Logger.logAction('系统初始化完成', 'success');
+    }
+
+    // 当文档加载完成时启动应用
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initializeApp);
+    } else {
+      initializeApp();
+    }
+
+    // 暴露全局API - 只暴露必要的函数
+    window.UI = {
+      toggleMenu: UI.toggleMenu.bind(UI),
+      togglePanel: UI.togglePanel.bind(UI)
+    };
+
+    // 支持热重载 (开发环境)
+    if (import.meta.hot) {
+      import.meta.hot.accept(() => {
+        Logger.logAction('检测到模块热重载', 'info');
+      });
+    }
+  </script>
+</body>
+</html>
